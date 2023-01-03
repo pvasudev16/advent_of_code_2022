@@ -220,7 +220,11 @@ std::vector<std::string> readProgram(const std::string & filename)
 class CPU
 {
   public:
-    CPU() : m_Register(1), m_Cycle(0) {};
+    CPU() : m_Register(1), m_Cycle(0)
+    {
+      for (int i = 0; i < 6; ++i)
+        m_CRTDisplay.push_back(std::vector<char>(40, '.'));
+    }
 
     // Every time we increment the clock, calculate the signal strength
     // and push it to the end of the vector
@@ -228,18 +232,15 @@ class CPU
     {
       m_Cycle += 1;
       m_SignalStrength.push_back(m_Cycle * m_Register);
-    }
-    // The noop function doesn't do anything except increment the cycle
-    void noop() { incrementClockAndCalculateSignalStrength(); }
+      // Get (i, j) position on CRT monitor
+      int i = (m_Cycle - 1) / 40;
+      int j = (m_Cycle - 1) % 40;
+      // Get the register value
+      int V = getRegisterValue();
 
-    void addx(int V)
-    {
-        // We know that an "addx" requires two cycles. During the first cycle, the
-        // register stays the same. During the second cycle, the register also stays
-        // the same, but at the end of the second cycle, we increment the register.
-        incrementClockAndCalculateSignalStrength();
-        incrementClockAndCalculateSignalStrength();
-        m_Register += V;
+      // The register denotes the middle position of a three-pixel sprite.
+      if ( j == V || j == V - 1 || j == V + 1)
+        m_CRTDisplay[i][j] = '#';
     }
 
     void applyInstruction(const std::string & instruction)
@@ -247,28 +248,48 @@ class CPU
       // Instructions can be "noop" or "addx some_integer"
       // Call the appropriate function
       if (instruction.substr(0, 4) == "noop")
-        noop();
+      {
+        incrementClockAndCalculateSignalStrength();
+      }       
       else if (instruction.substr(0, 4) == "addx")
       {
         size_t spacePosition = instruction.find(" ");
         // Use the problem terminology and call the value by which we increment
         // the register V.
         int V = std::atoi(instruction.substr(spacePosition + 1).c_str());
-        addx(V);
+
+        // We know that an "addx" requires two cycles. During the first cycle, the
+        // register stays the same. During the second cycle, the register also stays
+        // the same, but at the end of the second cycle, we increment the register.
+        incrementClockAndCalculateSignalStrength();
+        incrementClockAndCalculateSignalStrength();
+        m_Register += V;
       }
     }
 
-    // Write a method to return the vector containing all the signal strengths
+    void printCRT()
+    {
+      for (int i = 0; i < 6; ++i)
+      {
+        for (int j = 0; j < 40; ++j)
+          std::cout << m_CRTDisplay[i][j];
+        std::cout << std::endl;
+      }
+    }
+
+    // Write a method to return the vector containing all the signal strengths as well
+    // as other get methods.
     std::vector<int> getSignalStrength() { return m_SignalStrength; }
-
     int getRegisterValue() { return m_Register; }
-
-
+    int getCycleNumber() { return m_Cycle; }
   private:
     int m_Register;
     int m_Cycle;
     // The zeroth element of the signal strength is the value after the first cycle.
     std::vector<int> m_SignalStrength;
+
+    // Store the CRT display as a matrix. 
+    std::vector<std::vector<char>> m_CRTDisplay;
 };
 
 int main()
@@ -295,7 +316,9 @@ int main()
       sumOfSignalStrengths += signalStrength[i];
     }
   }
-
   std::cout << "The sum of the signal strengths after cycles 20, 60, 100, etc. is " << sumOfSignalStrengths << std::endl;
+
+  // Part 2
+  cpu.printCRT();
   return 0;
 }
